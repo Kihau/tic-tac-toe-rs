@@ -5,10 +5,11 @@ use crossterm::{
 
 use std::io::stdout;
 
-mod online;
-mod offline;
-mod gui;
 mod game;
+mod gui;
+mod offline;
+mod online;
+mod ai;
 
 // Menu -> Input options: [Online (Host / Connect)] / [Offline (AI / PvP)]
 // Establish Tcp connection - host starts first
@@ -35,7 +36,11 @@ fn main() {
     ];
 
     list.generate_list();
-    execute!(stdout(), crossterm::cursor::MoveTo(0, 0)).unwrap();
+    execute!(
+        stdout(),
+        crossterm::cursor::MoveTo(0, list.items.len() as u16 + 2)
+    )
+    .unwrap();
     loop {
         if let Event::Key(event) = read().unwrap() {
             match event.code {
@@ -49,11 +54,10 @@ fn main() {
                 _ => {}
             }
         }
+        execute!(
+            stdout(),
+            crossterm::cursor::MoveTo(0, list.items.len() as u16 + 2)
+        )
+        .unwrap();
     }
-    execute!(
-        stdout(),
-        crossterm::cursor::MoveTo(0, list.items.len() as u16 + 3)
-    )
-    .unwrap();
 }
-

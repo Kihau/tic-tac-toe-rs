@@ -1,4 +1,3 @@
-
 use crossterm::{
     execute,
     style::*,
@@ -21,6 +20,11 @@ use std::io;
     │  SIZE: 123         │
     └────────────────────┘
 */
+
+// pub struct InputField {
+//     pub text: String,
+//     pub frame: String,
+// }
 
 pub struct MenuList {
     pub items: Vec<String>,

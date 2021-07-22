@@ -1,5 +1,9 @@
+use crossterm::{
+    event::{read, Event, KeyCode},
+    execute,
+    style::Color,
+};
 use std::io::stdout;
-use crossterm::{event::{Event, KeyCode, read}, execute, style::Color};
 
 // move_num should be dirrectly conneted to game turn
 pub struct PlayerMove {

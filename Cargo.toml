@@ -1,5 +1,5 @@
 [package]
-name = "tic-tac-toe"
+name = "tic-tac-toe-rs"
 version = "0.1.0"
 edition = "2018"
 
@@ -7,3 +7,4 @@ edition = "2018"
 
 [dependencies]
 crossterm = "0.20"
+dns-lookup = "1.0.8"

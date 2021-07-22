@@ -1,5 +1,5 @@
-use std::io::stdout;
 use crossterm::{execute, style::*, terminal::*};
+use std::io::stdout;
 
 use crate::game;
 
@@ -32,7 +32,6 @@ pub fn offline_player() {
         )
         .unwrap();
 
-
         // Switching player
         // bool is wacky - change it later on
         turn = !turn;
@@ -48,7 +47,6 @@ pub fn offline_player() {
     )
     .unwrap();
 }
-
 
 pub fn offline_minmax() {}
 pub fn offline_neuralnetwork() {}
