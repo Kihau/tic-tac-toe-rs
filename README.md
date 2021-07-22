@@ -1,12 +1,12 @@
 # TicTacToe game written in rust
 ## Libraries used:
-  - Crossterm - extended console control
-  - Dns-lookup - resolving dns ips
-## Implemented consepts: 
+  - [Crossterm](https://github.com/crossterm-rs/crossterm) - extended console control
+  - [Dns-lookup](https://github.com/keeperofdakeys/dns-lookup/) - resolving dns ips
+## Consepts used in the game: 
   - MinMax algorithm
   - Neural Network
   - Simple networking
-## TO DO
+## TO DO:
   - Game:
     - [ ] Check for win, lose or draw
     - [ ] Implement gui input box
