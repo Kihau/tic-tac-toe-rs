@@ -1,6 +1,6 @@
 use std::{
     io::{stdin, stdout, Read, Write},
-    net::{Shutdown, TcpListener, TcpStream},
+    net::{TcpListener, TcpStream},
 };
 
 use crossterm::{self, cursor::MoveTo, event::*, execute, style::*, terminal::*, *};
@@ -26,18 +26,16 @@ fn start_game(stream: &mut TcpStream, size: usize, mut turn: bool) {
     )
     .unwrap();
 
-    let mut current;
+    let mut current = CROSS;
     loop {
         let action = if turn {
             let action = game.do_action(&pos);
             // Handle server shutdown
             stream.write_all(&action.send_data()[..]).unwrap();
-            current = CROSS;
             action
         } else {
             let mut buffer = [0u8; 3];
             stream.read_exact(&mut buffer).unwrap();
-            current = CIRCLE;
             GameAction::retrieve_data(&buffer)
         };
 
@@ -56,7 +54,12 @@ fn start_game(stream: &mut TcpStream, size: usize, mut turn: bool) {
                 .unwrap();
 
                 game.board[pos.x][pos.y] = current.move_num;
+
                 turn = !turn;
+                current = match turn {
+                    true => CROSS,
+                    false => CIRCLE,
+                };
             }
             GameAction::ResetGame => break,
             GameAction::ExitGame => break,

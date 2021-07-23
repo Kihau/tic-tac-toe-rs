@@ -13,8 +13,9 @@
     - [ ] Add rematch option
     - [ ] Keep track of games won/lost
   - Multiplayer:
-    - [ ] Send packets whenever cursor is moved instead of when the move is made
+    - [ ] Fix bug where idle player can set his cursor position beforehand
     - [ ] Implement proper exception handling for client and server function
+    - [x] Send packets whenever cursor is moved instead of when the move is made
   - AI:
     - [ ] Implement Min Max algorithm
     - [ ] Implement Neural Network algorithm

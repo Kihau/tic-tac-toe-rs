@@ -50,7 +50,7 @@ impl MenuList {
         // Generate and add top panels
         let mut top = format!("┌{}", title);
         for _ in 0..width - title.chars().count() - 2 {
-            top.push_str("─");
+            top.push('─');
         }
         top.push_str("┐\n");
         frame.push_str(&top);
@@ -58,7 +58,7 @@ impl MenuList {
         // Generate and add middle panels
         let mut middle = String::from("│");
         for _ in 0..width - 2 {
-            middle.push_str(" ");
+            middle.push(' ');
         }
         middle.push_str("│\n");
 
@@ -69,7 +69,7 @@ impl MenuList {
         // Generate and add bottom panels
         let mut bottom = String::from("└");
         for _ in 0..width - 2 {
-            bottom.push_str("─");
+            bottom.push('─');
         }
         bottom.push_str("┘\n");
         frame.push_str(&bottom);
