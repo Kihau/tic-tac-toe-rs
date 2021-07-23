@@ -1,41 +1,95 @@
 use std::{
     io::{stdin, stdout, Read, Write},
-    net::{TcpListener, TcpStream},
+    net::{Shutdown, TcpListener, TcpStream},
 };
 
-use crossterm::{
-    event::{read, Event},
-    execute,
-    style::*,
-    terminal::*,
-};
+use crossterm::{self, cursor::MoveTo, event::*, execute, style::*, terminal::*, *};
 use dns_lookup::lookup_host;
 
-use crate::game;
+use crate::game::*;
 
 // Starting sides should be switched after every game
 // Add a button to concede (ex: Ecp -> "Are you sure you want to surrender?" )
 
+pub fn take_turn(stream: &mut TcpStream, game: &mut Game, player: PlayerType, mut pos: Position) {
+    loop {
+        let action = game.do_action(&pos);
+
+        // Handle server shutdown
+        stream.write(&action.send_data()[..]).unwrap();
+        match &action {
+            GameAction::ChangePos(Position { x, y }) => {
+                pos = Position::new(*x, *y);
+                execute!(stdout(), MoveTo(pos.x as u16 * 6 + 3, pos.y as u16 * 2 + 1),).unwrap();
+            }
+            GameAction::MakeMove(Position { x, y }) => {
+                execute!(
+                    stdout(),
+                    //MoveTo(pos.x as u16 * 6 + 3, pos.y as u16 * 2 + 1),
+                    SetForegroundColor(player.move_color),
+                    Print(player.move_char),
+                    SetForegroundColor(Color::Reset),
+                )
+                .unwrap();
+
+                pos = Position::new(*x, *y);
+                game.board[pos.x][pos.y] = player.move_num;
+                return;
+            }
+            GameAction::ResetGame => return,
+            GameAction::ExitGame => {
+                stream.shutdown(Shutdown::Both).unwrap();
+                return;
+            }
+            GameAction::NoAction => {}
+        }
+    }
+}
+
+pub fn wait_turn(stream: &mut TcpStream, game: &mut Game, player: PlayerType) -> Option<Position> {
+    loop {
+        let mut buffer = [0u8; 3];
+        stream.read(&mut buffer).unwrap();
+
+        let action = GameAction::retrieve_data(&buffer);
+        match action {
+            GameAction::ChangePos(pos) => {
+                execute!(stdout(), MoveTo(pos.x as u16 * 6 + 3, pos.y as u16 * 2 + 1),).unwrap();
+            }
+            GameAction::MakeMove(pos) => {
+                execute!(
+                    stdout(),
+                    //MoveTo(pos.x as u16 * 6 + 3, pos.y as u16 * 2 + 1),
+                    SetForegroundColor(player.move_color),
+                    Print(player.move_char),
+                    SetForegroundColor(Color::Reset),
+                )
+                .unwrap();
+
+                game.board[pos.x][pos.y] = player.move_num;
+                return Some(pos);
+            }
+            GameAction::ResetGame => return None,
+            GameAction::ExitGame => return None,
+            GameAction::NoAction => {}
+        }
+    }
+}
+
 pub fn online_host() {
-    // Input the board size
-    // Establish connection
-    // Send information about board size to the client
-
-    // Create game and print a board
-
-    // --- Repeat until game is over ---
-    // Wait for the opponent move
-    // Check if game is over
-    // Make a move
-
-    // Ask for rematch
-    // Play another game / Exit to menu
     print!("Input board size: ");
     stdout().flush().unwrap();
 
     let mut buffer = String::new();
     stdin().read_line(&mut buffer).unwrap();
     let size = buffer.trim().parse::<usize>().unwrap();
+
+    print!("Input host ip: ");
+    stdout().flush().unwrap();
+
+    let mut buffer = String::new();
+    stdin().read_line(&mut buffer).unwrap();
+    let addr = buffer.trim();
 
     print!("Input connection port: ");
     stdout().flush().unwrap();
@@ -44,7 +98,7 @@ pub fn online_host() {
     stdin().read_line(&mut buffer).unwrap();
     let port = buffer.trim();
 
-    let server = TcpListener::bind(format!("192.168.1.32:{}", port));
+    let server = TcpListener::bind(format!("{}:{}", addr, port));
     if let Err(e) = &server {
         eprintln!("Could not create the server: {}", e);
         eprintln!("Press any button to continue. . .");
@@ -58,10 +112,8 @@ pub fn online_host() {
         Ok((mut stream, addr)) => {
             stream.write(&[size as u8]).unwrap();
 
-            let mut game = game::Game::new(size);
-            let pm1 = game::CROSS;
-            let pm2 = game::CIRCLE;
-            let mut pos = game::Position::new(0, 0);
+            let mut game = Game::new(size);
+            let mut pos = Position::new(0, 0);
 
             execute!(
                 stdout(),
@@ -70,37 +122,16 @@ pub fn online_host() {
                 SetForegroundColor(Color::Yellow),
                 Print(&game.board_string),
                 SetForegroundColor(Color::Reset),
+                cursor::Show,
             )
             .unwrap();
 
             loop {
-                pos = game.make_move(pos).unwrap();
-                stream.write(&[pos.x as u8, pos.y as u8]).unwrap();
-                game.board[pos.x][pos.y] = pm1.move_num;
-                execute!(
-                    stdout(),
-                    crossterm::cursor::MoveTo(pos.x as u16 * 6 + 3, pos.y as u16 * 2 + 1),
-                    SetForegroundColor(pm1.move_color),
-                    Print(pm1.move_char),
-                    SetForegroundColor(Color::Reset),
-                    crossterm::cursor::Hide,
-                )
-                .unwrap();
-
-                let mut buf = [0u8; 2];
-                stream.read(&mut buf).unwrap();
-                pos.x = buf[0] as usize;
-                pos.y = buf[1] as usize;
-                game.board[pos.x][pos.y] = pm2.move_num;
-                execute!(
-                    stdout(),
-                    crossterm::cursor::MoveTo(pos.x as u16 * 6 + 3, pos.y as u16 * 2 + 1),
-                    SetForegroundColor(pm2.move_color),
-                    Print(pm2.move_char),
-                    SetForegroundColor(Color::Reset),
-                    crossterm::cursor::Show,
-                )
-                .unwrap();
+                take_turn(&mut stream, &mut game, CROSS, pos);
+                pos = match wait_turn(&mut stream, &mut game, CIRCLE) {
+                    Some(pos) => pos,
+                    None => break,
+                }
             }
         }
         Err(_e) => {}
@@ -108,19 +139,6 @@ pub fn online_host() {
 }
 
 pub fn online_client() {
-    // Input ip adress and establish connection
-    // Recieve information about the board size
-
-    // Create game and print a board
-
-    // --- Repeat until game is over ---
-    // Make a move
-    // Check if game is over
-    // Wait for the opponent move
-
-    // Ask for rematch
-    // Play another game / Exit to menu
-
     print!("Input server ip: ");
     stdout().flush().unwrap();
 
@@ -150,10 +168,8 @@ pub fn online_client() {
     let mut buf = [0u8; 1];
     stream.read(&mut buf).unwrap();
 
-    let mut game = game::Game::new(buf[0] as usize);
-    let pm1 = game::CROSS;
-    let pm2 = game::CIRCLE;
-    let mut pos = game::Position::new(0, 0);
+    let mut game = Game::new(buf[0] as usize);
+    //let mut pos = Position::new(0, 0);
 
     execute!(
         stdout(),
@@ -162,37 +178,15 @@ pub fn online_client() {
         SetForegroundColor(Color::Yellow),
         Print(&game.board_string),
         SetForegroundColor(Color::Reset),
-        crossterm::cursor::Hide,
+        cursor::Show,
     )
     .unwrap();
 
     loop {
-        let mut buf = [0u8; 2];
-        stream.read(&mut buf).unwrap();
-        pos.x = buf[0] as usize;
-        pos.y = buf[1] as usize;
-        game.board[pos.x][pos.y] = pm1.move_num;
-        execute!(
-            stdout(),
-            crossterm::cursor::MoveTo(pos.x as u16 * 6 + 3, pos.y as u16 * 2 + 1),
-            SetForegroundColor(pm1.move_color),
-            Print(pm1.move_char),
-            SetForegroundColor(Color::Reset),
-            crossterm::cursor::Show,
-        )
-        .unwrap();
-
-        pos = game.make_move(pos).unwrap();
-        stream.write(&[pos.x as u8, pos.y as u8]).unwrap();
-        game.board[pos.x][pos.y] = pm2.move_num;
-        execute!(
-            stdout(),
-            crossterm::cursor::MoveTo(pos.x as u16 * 6 + 3, pos.y as u16 * 2 + 1),
-            SetForegroundColor(pm2.move_color),
-            Print(pm2.move_char),
-            SetForegroundColor(Color::Reset),
-            crossterm::cursor::Hide,
-        )
-        .unwrap();
+        let pos = match wait_turn(&mut stream, &mut game, CROSS) {
+            Some(pos) => pos,
+            None => break,
+        };
+        take_turn(&mut stream, &mut game, CIRCLE, pos);
     }
 }
