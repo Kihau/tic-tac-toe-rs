@@ -5,11 +5,11 @@ use crossterm::{
 
 use std::io::stdout;
 
+mod ai;
 mod game;
 mod gui;
 mod offline;
 mod online;
-mod ai;
 
 // Menu -> Input options: [Online (Host / Connect)] / [Offline (AI / PvP)]
 // Establish Tcp connection - host starts first

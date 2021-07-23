@@ -10,67 +10,56 @@ use crate::game::*;
 
 // Starting sides should be switched after every game
 // Add a button to concede (ex: Ecp -> "Are you sure you want to surrender?" )
+fn start_game(stream: &mut TcpStream, size: usize, mut turn: bool) {
+    let mut game = Game::new(size);
+    let mut pos = Position::new(0usize, 0usize);
 
-pub fn take_turn(stream: &mut TcpStream, game: &mut Game, player: PlayerType, mut pos: Position) {
+    execute!(
+        stdout(),
+        Clear(ClearType::All),
+        crossterm::cursor::MoveTo(0, 0),
+        SetForegroundColor(Color::Yellow),
+        Print(&game.board_string),
+        SetForegroundColor(Color::Reset),
+        MoveTo(3, 1),
+        cursor::Show,
+    )
+    .unwrap();
+
+    let mut current;
     loop {
-        let action = game.do_action(&pos);
+        let action = if turn {
+            let action = game.do_action(&pos);
+            // Handle server shutdown
+            stream.write_all(&action.send_data()[..]).unwrap();
+            current = CROSS;
+            action
+        } else {
+            let mut buffer = [0u8; 3];
+            stream.read_exact(&mut buffer).unwrap();
+            current = CIRCLE;
+            GameAction::retrieve_data(&buffer)
+        };
 
-        // Handle server shutdown
-        stream.write(&action.send_data()[..]).unwrap();
-        match &action {
-            GameAction::ChangePos(Position { x, y }) => {
-                pos = Position::new(*x, *y);
-                execute!(stdout(), MoveTo(pos.x as u16 * 6 + 3, pos.y as u16 * 2 + 1),).unwrap();
-            }
-            GameAction::MakeMove(Position { x, y }) => {
-                execute!(
-                    stdout(),
-                    //MoveTo(pos.x as u16 * 6 + 3, pos.y as u16 * 2 + 1),
-                    SetForegroundColor(player.move_color),
-                    Print(player.move_char),
-                    SetForegroundColor(Color::Reset),
-                )
-                .unwrap();
-
-                pos = Position::new(*x, *y);
-                game.board[pos.x][pos.y] = player.move_num;
-                return;
-            }
-            GameAction::ResetGame => return,
-            GameAction::ExitGame => {
-                stream.shutdown(Shutdown::Both).unwrap();
-                return;
-            }
-            GameAction::NoAction => {}
-        }
-    }
-}
-
-pub fn wait_turn(stream: &mut TcpStream, game: &mut Game, player: PlayerType) -> Option<Position> {
-    loop {
-        let mut buffer = [0u8; 3];
-        stream.read(&mut buffer).unwrap();
-
-        let action = GameAction::retrieve_data(&buffer);
         match action {
-            GameAction::ChangePos(pos) => {
-                execute!(stdout(), MoveTo(pos.x as u16 * 6 + 3, pos.y as u16 * 2 + 1),).unwrap();
+            GameAction::ChangePos(new_pos) => {
+                pos = new_pos;
+                execute!(stdout(), MoveTo(pos.x as u16 * 6 + 3, pos.y as u16 * 2 + 1)).unwrap();
             }
             GameAction::MakeMove(pos) => {
                 execute!(
                     stdout(),
-                    //MoveTo(pos.x as u16 * 6 + 3, pos.y as u16 * 2 + 1),
-                    SetForegroundColor(player.move_color),
-                    Print(player.move_char),
+                    SetForegroundColor(current.move_color),
+                    Print(current.move_char),
                     SetForegroundColor(Color::Reset),
                 )
                 .unwrap();
 
-                game.board[pos.x][pos.y] = player.move_num;
-                return Some(pos);
+                game.board[pos.x][pos.y] = current.move_num;
+                turn = !turn;
             }
-            GameAction::ResetGame => return None,
-            GameAction::ExitGame => return None,
+            GameAction::ResetGame => break,
+            GameAction::ExitGame => break,
             GameAction::NoAction => {}
         }
     }
@@ -110,29 +99,9 @@ pub fn online_host() {
     println!("\nWaiting for the client to connect. . .");
     match server.unwrap().accept() {
         Ok((mut stream, addr)) => {
-            stream.write(&[size as u8]).unwrap();
-
-            let mut game = Game::new(size);
-            let mut pos = Position::new(0, 0);
-
-            execute!(
-                stdout(),
-                Clear(ClearType::All),
-                crossterm::cursor::MoveTo(0, 0),
-                SetForegroundColor(Color::Yellow),
-                Print(&game.board_string),
-                SetForegroundColor(Color::Reset),
-                cursor::Show,
-            )
-            .unwrap();
-
-            loop {
-                take_turn(&mut stream, &mut game, CROSS, pos);
-                pos = match wait_turn(&mut stream, &mut game, CIRCLE) {
-                    Some(pos) => pos,
-                    None => break,
-                }
-            }
+            stream.write_all(&[size as u8]).unwrap();
+            println!("Connection established with: {}", addr);
+            start_game(&mut stream, size, true);
         }
         Err(_e) => {}
     }
@@ -166,27 +135,6 @@ pub fn online_client() {
 
     let mut stream = stream.unwrap();
     let mut buf = [0u8; 1];
-    stream.read(&mut buf).unwrap();
-
-    let mut game = Game::new(buf[0] as usize);
-    //let mut pos = Position::new(0, 0);
-
-    execute!(
-        stdout(),
-        Clear(ClearType::All),
-        crossterm::cursor::MoveTo(0, 0),
-        SetForegroundColor(Color::Yellow),
-        Print(&game.board_string),
-        SetForegroundColor(Color::Reset),
-        cursor::Show,
-    )
-    .unwrap();
-
-    loop {
-        let pos = match wait_turn(&mut stream, &mut game, CROSS) {
-            Some(pos) => pos,
-            None => break,
-        };
-        take_turn(&mut stream, &mut game, CIRCLE, pos);
-    }
+    stream.read_exact(&mut buf).unwrap();
+    start_game(&mut stream, buf[0] as usize, false);
 }
