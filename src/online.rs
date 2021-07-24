@@ -3,7 +3,7 @@ use std::{
     net::{TcpListener, TcpStream},
 };
 
-use crossterm::{self, cursor::MoveTo, event::*, execute, style::*, terminal::*, *};
+use crossterm::{self, cursor, event::*, execute, style::*, terminal::*};
 use dns_lookup::lookup_host;
 
 use crate::game::*;
@@ -21,51 +21,86 @@ fn start_game(stream: &mut TcpStream, size: usize, mut turn: bool) {
         SetForegroundColor(Color::Yellow),
         Print(&game.board_string),
         SetForegroundColor(Color::Reset),
-        MoveTo(3, 1),
+        cursor::MoveTo(3, 1),
         cursor::Show,
     )
     .unwrap();
 
     let mut current = CROSS;
+    let mut sign = true;
+
     loop {
         let action = if turn {
             let action = game.do_action(&pos);
-            // Handle server shutdown
-            stream.write_all(&action.send_data()[..]).unwrap();
+            if let Err(e) = stream.write_all(&action.send_data()[..]) {
+                display_error(format!("{}", e));
+                break;
+            }
             action
         } else {
             let mut buffer = [0u8; 3];
-            stream.read_exact(&mut buffer).unwrap();
+            if let Err(e) = stream.read_exact(&mut buffer) {
+                display_error(format!("{}", e));
+                break;
+            }
             GameAction::retrieve_data(&buffer)
         };
 
         match action {
             GameAction::ChangePos(new_pos) => {
                 pos = new_pos;
-                execute!(stdout(), MoveTo(pos.x as u16 * 6 + 3, pos.y as u16 * 2 + 1)).unwrap();
+                execute!(
+                    stdout(),
+                    cursor::MoveTo(pos.x as u16 * 6 + 3, pos.y as u16 * 2 + 1)
+                )
+                .unwrap();
             }
             GameAction::MakeMove(pos) => {
                 execute!(
                     stdout(),
                     SetForegroundColor(current.move_color),
                     Print(current.move_char),
+                    cursor::MoveTo(pos.x as u16 * 6 + 3, pos.y as u16 * 2 + 1),
                     SetForegroundColor(Color::Reset),
                 )
                 .unwrap();
 
                 game.board[pos.x][pos.y] = current.move_num;
 
-                turn = !turn;
-                current = match turn {
+                // if board full / win / lose => message => draw exit option
+
+                sign = !sign;
+                current = match sign {
                     true => CROSS,
                     false => CIRCLE,
                 };
+                turn = !turn;
             }
-            GameAction::ResetGame => break,
+            GameAction::ResetGame => {
+                // Input new board size here (?)
+                game = Game::new(size);
+                pos = Position::new(0usize, 0usize);
+
+                execute!(
+                    stdout(),
+                    Clear(ClearType::All),
+                    crossterm::cursor::MoveTo(0, 0),
+                    SetForegroundColor(Color::Yellow),
+                    Print(&game.board_string),
+                    SetForegroundColor(Color::Reset),
+                    cursor::MoveTo(3, 1),
+                    cursor::Show,
+                )
+                .unwrap();
+
+                turn = !turn;
+
+            },
             GameAction::ExitGame => break,
             GameAction::NoAction => {}
         }
     }
+    // Exit message under the board here!
 }
 
 pub fn online_host() {
@@ -92,11 +127,7 @@ pub fn online_host() {
 
     let server = TcpListener::bind(format!("{}:{}", addr, port));
     if let Err(e) = &server {
-        eprintln!("Could not create the server: {}", e);
-        eprintln!("Press any button to continue. . .");
-        if let Event::Key(_) = read().unwrap() {
-            return;
-        }
+        display_error(format!("{}", e))
     }
 
     println!("\nWaiting for the client to connect. . .");
@@ -129,15 +160,20 @@ pub fn online_client() {
     let stream = TcpStream::connect(format!("{}:{}", addr[0], port));
 
     if let Err(e) = &stream {
-        println!("Could not connect to the server: {}", e);
-        eprintln!("Press any button to continue. . .");
-        if let Event::Key(_) = read().unwrap() {
-            return;
-        }
+        display_error(format!("{}", e))
     }
 
     let mut stream = stream.unwrap();
     let mut buf = [0u8; 1];
     stream.read_exact(&mut buf).unwrap();
     start_game(&mut stream, buf[0] as usize, false);
+}
+
+// Get position where error message should be printed
+fn display_error(error: String) {
+    eprintln!("Could not create the server: {}", error);
+    eprintln!("Press any button to continue. . .");
+    if let Event::Key(_) = read().unwrap() {
+        return;
+    }
 }

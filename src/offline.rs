@@ -4,7 +4,7 @@ use std::io::stdout;
 use crate::game;
 
 pub fn offline_player() {
-    let mut game = game::Game::new(5);
+    let mut game = game::Game::new(10);
     execute!(
         stdout(),
         Clear(ClearType::All),
@@ -31,6 +31,10 @@ pub fn offline_player() {
             SetForegroundColor(Color::Reset),
         )
         .unwrap();
+
+        if game.check_result(&pm, &pos) {
+            break;
+        }
 
         // Switching player
         // bool is wacky - change it later on

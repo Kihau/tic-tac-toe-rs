@@ -27,7 +27,7 @@ pub const CIRCLE: PlayerType = PlayerType {
 #[allow(dead_code)]
 pub const TRRIANGLE: PlayerType = PlayerType {
     move_char: '▲',
-    move_num: 2,
+    move_num: 3,
     move_color: Color::Green,
 };
 
@@ -197,6 +197,61 @@ impl Game {
     }
 
     // Check and return current state - Plyaer1(char), Player2(char), Draw, None
-    #[allow(dead_code)]
-    fn check_result() {}
+    pub fn check_result(&self, pt: &PlayerType, pos: &Position) -> bool {
+        let check_size = if self.board_size > 5 {
+            5
+        } else {
+            self.board_size
+        };
+
+        // Check if win horizontally
+        let mut checked = 0;
+        for i in pos.x..self.board_size {
+            if self.board[i][pos.y] != pt.move_num {
+                break;
+            } else if checked == check_size {
+                return true;
+            }
+            checked += 1;
+        }
+
+        for i in (0..pos.x).rev() {
+            if self.board[i][pos.y] != pt.move_num {
+                break;
+            } else if checked == check_size {
+                return true;
+            }
+            checked += 1;
+        }
+
+        if checked == check_size {
+            return true;
+        }
+
+        // Check if win vertically
+        let mut checked = 0;
+        for i in pos.y..self.board_size {
+            if self.board[pos.x][i] != pt.move_num {
+                break;
+            } else if checked == check_size {
+                return true;
+            }
+            checked += 1;
+        }
+
+        for i in (0..pos.y).rev() {
+            if self.board[pos.x][i] != pt.move_num {
+                break;
+            } else if checked == check_size {
+                return true;
+            }
+            checked += 1;
+        }
+
+        if checked == check_size {
+            return true;
+        }
+
+        false
+    }
 }

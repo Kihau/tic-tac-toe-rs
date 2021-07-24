@@ -9,12 +9,13 @@
 ## TO DO:
   - Game:
     - [ ] Check for win, lose or draw
-    - [ ] Implement gui input box
+    - [ ] Implement input box gui
+    - [ ] Implement gui for displaying text (ex. errors)
     - [ ] Add rematch option
     - [ ] Keep track of games won/lost
   - Multiplayer:
     - [ ] Fix bug where idle player can set his cursor position beforehand
-    - [ ] Implement proper exception handling for client and server function
+    - [x] Implement proper exception handling for client and server function
     - [x] Send packets whenever cursor is moved instead of when the move is made
   - AI:
     - [ ] Implement Min Max algorithm
