@@ -4,7 +4,7 @@ use std::io::stdout;
 use crate::game;
 
 pub fn offline_player() {
-    let mut game = game::Game::new(10);
+    let mut game = game::Game::new(6);
     execute!(
         stdout(),
         Clear(ClearType::All),

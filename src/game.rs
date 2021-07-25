@@ -3,7 +3,7 @@ use crossterm::{
     execute,
     style::Color,
 };
-use std::io::stdout;
+use std::{io::stdout, usize};
 
 // move_num should be dirrectly conneted to game turn
 pub struct PlayerType {
@@ -246,6 +246,68 @@ impl Game {
                 return true;
             }
             checked += 1;
+        }
+
+        if checked == check_size {
+            return true;
+        }
+
+        // Check if win diagonally "\"
+        let mut checked = 0;
+        let mut i = 0;
+
+        while pos.x + i < self.board_size && pos.y + i < self.board_size {
+            if self.board[pos.x + i][pos.y + i] != pt.move_num {
+                break;
+            }  else if checked == check_size {
+                return true;
+            }
+            checked += 1;
+            i += 1;
+        }
+
+        let mut i = 1;
+        while pos.x as isize - i as isize >= 0 && pos.y as isize - i as isize >= 0 {
+            if self.board[pos.x - i][pos.y - i] != pt.move_num {
+                break;
+            }  else if checked == check_size {
+                return true;
+            }
+            checked += 1;
+            i += 1;
+        }
+
+        if checked == check_size {
+            return true;
+        }
+
+        // Check if win diagonally "/"
+        let mut checked = 0;
+        let mut i = 0;
+
+        while pos.x + i < self.board_size && pos.y as isize - i as isize >= 0 {
+            if self.board[pos.x + i][pos.y - i] != pt.move_num {
+                break;
+            }  else if checked == check_size {
+                return true;
+            }
+            checked += 1;
+            i += 1;
+        }
+
+        let mut i = 1;
+        while pos.x as isize - i as isize >= 0 && pos.y + i < self.board_size {
+            if self.board[pos.x - i][pos.y + i] != pt.move_num {
+                break;
+            }  else if checked == check_size {
+                return true;
+            }
+            checked += 1;
+            i += 1;
+        }
+
+        if checked == check_size {
+            return true;
         }
 
         if checked == check_size {
