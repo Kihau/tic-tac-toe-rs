@@ -8,11 +8,11 @@
   - Simple networking
 ## TO DO:
   - Game:
-    - [ ] Check for win, lose or draw
     - [ ] Implement input box gui
     - [ ] Implement gui for displaying text (ex. errors)
     - [ ] Add rematch option
     - [ ] Keep track of games won/lost
+    - [x] Check for win, lose or draw
   - Multiplayer:
     - [ ] Fix bug where idle player can set his cursor position beforehand
     - [x] Implement proper exception handling for client and server function

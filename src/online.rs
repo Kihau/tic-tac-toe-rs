@@ -31,6 +31,9 @@ fn start_game(stream: &mut TcpStream, size: usize, mut turn: bool) {
 
     loop {
         let action = if turn {
+            // Split into two threads ???
+            // - first one for game inputs and sending cursor packets (?)
+            // - second one for gui inputs (?)
             let action = game.do_action(&pos);
             if let Err(e) = stream.write_all(&action.send_data()[..]) {
                 display_error(format!("{}", e));
@@ -39,6 +42,9 @@ fn start_game(stream: &mut TcpStream, size: usize, mut turn: bool) {
             action
         } else {
             let mut buffer = [0u8; 3];
+            // Split into two threads
+            // - first one waits of opponents move
+            // - second one allows user input 
             if let Err(e) = stream.read_exact(&mut buffer) {
                 display_error(format!("{}", e));
                 break;
@@ -68,6 +74,9 @@ fn start_game(stream: &mut TcpStream, size: usize, mut turn: bool) {
                 game.board[pos.x][pos.y] = current.move_num;
 
                 // if board full / win / lose => message => draw exit option
+                if game.check_result(&current, &pos) {
+                    break;
+                }
 
                 sign = !sign;
                 current = match sign {
